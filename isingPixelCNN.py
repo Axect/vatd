@@ -9,6 +9,7 @@ from autoregressive import MaskedResConv
 from utils import isingLogz, isingLogzTr
 import source, utils
 import h5py, os, sys
+import wandb
 
 # subfunctions
 def mapping(batch):
@@ -76,6 +77,33 @@ print('total nubmer of trainable parameters:', nparams)
 optimizer = torch.optim.Adam(params, lr=lr)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.92, patience=70, threshold=1e-4, min_lr=1e-6)
 
+# init wandb
+wandb.init(
+    project="VaTD_Ising_Test",
+    config={
+        "L": L,
+        "T0": T0,
+        "factorLst": factorLst,
+        "betaStart": betaStart,
+        "betaEnd": betaEnd,
+        "betaStep": betaStep,
+        "lr": lr,
+        "batchSize": batchSize,
+        "maxEpoch": maxEpoch,
+        "clipGrad": clipGrad,
+        "channel": channel,
+        "kernelSize": kernelSize,
+        "hiddenChannels": hiddenChannels,
+        "hiddenConvLayers": hiddenConvLayers,
+        "hiddenKernelSize": hiddenKernelSize,
+        "hiddenWidth": hiddenWidth,
+        "hiddenFcLayers": hiddenFcLayers,
+        "category": category,
+        "augmentChannels": augmentChannels,
+        "nparams": nparams,
+    }
+)
+
 # Training
 LOSS = []
 bestTrainLoss = 99999999
@@ -123,14 +151,30 @@ for e in range(maxEpoch):
     # feedback
     printString = 'epoch: {:d}, L: {:.5f},'
     resultLst = [e, lossSum]
+
+    # prepare wandb logging dict
+    wandb_log = {
+        "epoch": e,
+        "loss_sum": lossSum,
+        "train_time": trainTime,
+        "learning_rate": optimizer.param_groups[0]['lr'],
+    }
+
     for idx, factor in enumerate(factorLst):
         printString += 'ising@' + str(factor) + ':{:.5f},' + 'err:{:.2f},'
         resultLst += [lossLst[idx].item()/16/16/0.45, lossLst[idx].item() + isingExactloss[idx]]
+
+        # add to wandb logging
+        wandb_log[f'ising_loss@{factor}'] = lossLst[idx].item()/16/16/0.45
+        wandb_log[f'ising_error@{factor}'] = lossLst[idx].item() + isingExactloss[idx]
 
     printString += 'time:{:.2f}'
     resultLst += [trainTime]
     resultLst = tuple(resultLst)
     print(printString.format(*resultLst))
+
+    # log to wandb
+    wandb.log(wandb_log)
 
     # save
     if e % saveStep == 0 or e == 0:
