@@ -38,8 +38,8 @@ stepNum = dataSize // betaBatchSize
 lr =5.e-4
 eps = 1.e-8
 batchSize = 500
-maxEpoch = 4600
-saveStep = 20
+maxEpoch = 20
+saveStep = 10
 clipGrad = 1.0 #clip gradient to stablize, 0 for not using
 
 # define device
