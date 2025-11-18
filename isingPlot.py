@@ -229,7 +229,7 @@ if __name__ == "__main__":
         return torch.div(batch + 1, 2, rounding_mode='trunc')
 
     loadPath = 'opt/isingTraining/'
-    model = torch.load(loadPath+"best_TrainLoss_model.saving", map_location=device).to(device)
+    model = torch.load(loadPath+"best_TrainLoss_model.saving", map_location=device, weights_only=False).to(device)
 
     # evaluation
     T0 =2.269 # scaling T0
