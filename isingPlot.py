@@ -9,6 +9,7 @@ from autoregressive import DiscretePixelCNN
 from autoregressive import MaskedResConv
 from utils import isingLogz, isingLogzTr
 import source, utils, os, sys
+from tqdm import tqdm
 
 def exactCal(L, beta):
     beta = beta.clone().detach().requires_grad_(True)
@@ -88,7 +89,7 @@ def heatCapPlot(model, L, batchSize, betaMin=0.3, betaMax=0.6, stepNum=100, save
     mag2Lst = []
     partFnErrLst = []
 
-    for beta in betaLst:
+    for beta in tqdm(betaLst, desc="Processing beta values", unit="beta"):
 
         beta = beta.clone().detach()
         logZexact = exactCal(L, beta)
@@ -104,7 +105,7 @@ def heatCapPlot(model, L, batchSize, betaMin=0.3, betaMax=0.6, stepNum=100, save
             CvLoopBlts = []
             heatCest1orderLoopLst = []
             partFnErrLoopLst = []
-            for l in range(loop):
+            for l in tqdm(range(loop), desc=f"  β={beta.item():.3f}", leave=False, unit="sample"):
                 logZ, meanEnergy, heatCap, heatest1der, magMean, mag2Mean, partFnErr, heatest1der, meanEnergy_b, heatCap_b, heatest1der = reinforce(model=model, beta=beta, L=L, batchSize=batchSize, device=device)
                 lnZLoopLst.append(logZ)
                 meanELoopLst.append(meanEnergy)
@@ -130,7 +131,7 @@ def heatCapPlot(model, L, batchSize, betaMin=0.3, betaMax=0.6, stepNum=100, save
             eLoopLst = []
             e2LoopLst = []
             lnZLoopLst = []
-            for l in range(loop):
+            for l in tqdm(range(loop), desc=f"  β={beta.item():.3f}", leave=False, unit="sample"):
                 beta.repeat(batchSize, 1).requires_grad_(True).to(device)
                 T = 1/beta
                 ising = source.VanillaIsing(L=L, d=2, T=T, exact=False).to(device)
@@ -154,11 +155,9 @@ def heatCapPlot(model, L, batchSize, betaMin=0.3, betaMax=0.6, stepNum=100, save
 
         error = abs(logZexact - logZ)
         if autodiff:
-            print("beta:", beta.mean().item(), "meanE:",
-                meanElst[-1], "Cv:", heatClst[-1], "error:", error, 'mag', magLst[-1], 'mag2', mag2Lst[-1], 'meanE_b:', meanEBlst[-1], 'Cv_b:', heatCBlst[-1], '1stEstCv:', heatCest1orderLst[-1], 'std_lnZ:', partFnErrLst[-1])
+            tqdm.write(f"β={beta.mean().item():.4f} | meanE={meanElst[-1]:.4e} | Cv={heatClst[-1]:.4e} | error={error:.4e} | mag={magLst[-1]:.4e} | mag2={mag2Lst[-1]:.4e} | meanE_b={meanEBlst[-1]:.4e} | Cv_b={heatCBlst[-1]:.4e} | 1stEstCv={heatCest1orderLst[-1]:.4e} | std_lnZ={partFnErrLst[-1]:.4e}")
         else:
-            print("beta:", beta.mean().item(), "meanE:",
-                meanElst[-1], "Cv:", heatClst[-1], "error:", error)
+            tqdm.write(f"β={beta.mean().item():.4f} | meanE={meanElst[-1]:.4e} | Cv={heatClst[-1]:.4e} | error={error:.4e}")
 
     lnZlst = np.array(lnZlst)
     meanElst = np.array(meanElst)
@@ -255,7 +254,7 @@ if __name__ == "__main__":
         resultLst += [lossLst[idx].item()/16/16/0.45, lossLst[idx].item() + isingExactloss[idx]]
 
     resultLst = tuple(resultLst)
-    print(printString.format(*resultLst))
+    tqdm.write(printString.format(*resultLst))
 
     heatCapPlot(model, L, batchSize, betaMin=betaMin, betaMax=betaMax, stepNum=num,
                 show=False, savePath=loadPath+"pic/", device=device, autodiff=True, loop=loop)
